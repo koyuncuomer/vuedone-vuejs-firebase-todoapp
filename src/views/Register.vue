@@ -1,17 +1,32 @@
 <script setup>
 import { ref } from 'vue';
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "@/firebase";
+import { useRouter } from 'vue-router';
+import handleAuthError from '@/utils/authErrorHandler';
+
+const router = useRouter();
 
 const name = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
+const errMsg = ref();
 
-const submitRegister = () => {
+const submitRegister = async () => {
   if (password.value !== confirmPassword.value) {
-    alert('Passwords do not match!');
+    errMsg.value = 'Passwords do not match!';
     return;
   }
-  console.log('Name:', name.value, 'Email:', email.value, 'Password:', password.value);
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value);
+    await updateProfile(userCredential.user, {
+      displayName: name.value
+    });
+    router.push('/todos')
+  } catch (error) {
+    errMsg.value = handleAuthError(error.code);
+  }
 };
 </script>
 
@@ -25,6 +40,7 @@ const submitRegister = () => {
           <v-text-field v-model="email" label="Email" type="email" required></v-text-field>
           <v-text-field v-model="password" label="Password" type="password" required></v-text-field>
           <v-text-field v-model="confirmPassword" label="Confirm Password" type="password" required></v-text-field>
+          <p class="text-red" v-if="errMsg">{{ errMsg }} </p>
           <v-btn color="primary" block type="submit">Register</v-btn>
         </v-form>
         <v-divider class="my-4"></v-divider>

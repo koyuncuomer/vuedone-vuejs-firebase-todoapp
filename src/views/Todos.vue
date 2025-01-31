@@ -1,31 +1,50 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, query, orderBy } from "firebase/firestore";
-import { db } from '@/firebase';
+import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, query, orderBy, where } from "firebase/firestore";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { db, auth } from '@/firebase';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const todosCollection = collection(db, 'todos');
-const todosCollectionQuery = query(todosCollection, orderBy("date", "desc"));
 
 const newTodo = ref('');
 const todos = ref([]);
+const user = ref();
 
 onMounted(() => {
-  onSnapshot(todosCollectionQuery, (querySnapshot) => {
-    const _todos = [];
-    querySnapshot.forEach((doc) => {
-      const todo = { id: doc.id, ...doc.data() };
-      _todos.push(todo);
-    });
-    todos.value = _todos;
+  const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    if (firebaseUser) {
+      user.value = firebaseUser;
+
+      const todosQuery = query(
+        todosCollection,
+        where("userId", "==", firebaseUser.uid),
+        orderBy("date", "desc")
+      );
+
+      onSnapshot(todosQuery, (querySnapshot) => {
+        const _todos = [];
+        querySnapshot.forEach((doc) => {
+          const todo = { id: doc.id, ...doc.data() };
+          _todos.push(todo);
+        });
+        todos.value = _todos;
+      });
+    }
   });
-})
+
+  return () => unsubscribe();
+});
 
 const addTodo = () => {
   if (newTodo.value.trim()) {
     addDoc(todosCollection, {
       content: newTodo.value,
       done: false,
-      date: Date.now()
+      date: Date.now(),
+      userId: user.value.uid
     });
     newTodo.value = '';
   }
@@ -42,16 +61,21 @@ const toggleDone = (id) => {
   });
 };
 
-const logout = () => {
-  console.log('Logout clicked');
+const logout = async () => {
+  try {
+    await signOut(auth);
+    router.push('/login')
+  } catch (error) {
+    console.error("Çıkış hatası:", error.message);
+  }
 };
 </script>
 
 <template>
-  <v-card class="mx-auto" color="grey-darken-3" max-width="50%">
+  <v-card class="mx-auto" color="grey-darken-3" max-width="650">
     <v-layout>
       <v-app-bar color="black">
-        <v-app-bar-title>VueDone</v-app-bar-title>
+        <v-app-bar-title>VueDone | {{ user?.displayName }}</v-app-bar-title>
         <v-spacer></v-spacer>
         <v-btn @click="logout">Logout</v-btn>
       </v-app-bar>
@@ -59,10 +83,10 @@ const logout = () => {
       <v-main>
         <v-container fluid>
           <v-row class="align-center">
-            <v-col cols="11">
+            <v-col cols="10">
               <v-text-field v-model="newTodo" label="Add a new todo"></v-text-field>
             </v-col>
-            <v-col cols="1" class="d-flex justify-end">
+            <v-col cols="2" class="d-flex justify-end">
               <v-btn color="success" @click="addTodo" block>Add</v-btn>
             </v-col>
           </v-row>
