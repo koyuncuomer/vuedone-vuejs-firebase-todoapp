@@ -4,12 +4,14 @@ import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, query, order
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '@/firebase';
 import { useRouter } from 'vue-router';
+import { VDateInput } from 'vuetify/labs/VDateInput'
 
 const router = useRouter();
 
 const todosCollection = collection(db, 'todos');
 
-const newTodo = ref('');
+const newTodoContent = ref('');
+const newTodoDeadline = ref(null);
 const todos = ref([]);
 const user = ref();
 
@@ -39,14 +41,16 @@ onMounted(() => {
 });
 
 const addTodo = () => {
-  if (newTodo.value.trim()) {
+  if (newTodoContent.value.trim()) {
     addDoc(todosCollection, {
-      content: newTodo.value,
+      content: newTodoContent.value,
+      deadline: newTodoDeadline.value,
       done: false,
       date: Date.now(),
       userId: user.value.uid
     });
-    newTodo.value = '';
+    newTodoContent.value = '';
+    newTodoDeadline.value = null;
   }
 };
 
@@ -69,6 +73,22 @@ const logout = async () => {
     console.error("Çıkış hatası:", error.message);
   }
 };
+
+const calculateRemainingDays = (deadline) => {
+  if (!deadline) return null
+
+  const today = new Date()
+  const deadlineDate = deadline.toDate()
+
+  today.setHours(0, 0, 0, 0)
+  deadlineDate.setHours(0, 0, 0, 0)
+
+  const diffTime = deadlineDate - today
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  return diffDays
+}
+
 </script>
 
 <template>
@@ -82,11 +102,16 @@ const logout = async () => {
 
       <v-main>
         <v-container fluid>
-          <v-row class="align-center">
-            <v-col cols="10">
-              <v-text-field v-model="newTodo" label="Add a new todo"></v-text-field>
+          <v-row dense>
+            <v-col cols="9">
+              <v-text-field v-model="newTodoContent" label="Add a new todo" variant="outlined"></v-text-field>
             </v-col>
-            <v-col cols="2" class="d-flex justify-end">
+            <v-col cols="3">
+              <v-date-input v-model="newTodoDeadline" label="End date" prepend-icon="" variant="outlined"
+                show-adjacent-months first-day-of-week="1" clearable
+                @click:clear="newTodoDeadline = null"></v-date-input>
+            </v-col>
+            <v-col cols="12">
               <v-btn color="success" @click="addTodo" block>Add</v-btn>
             </v-col>
           </v-row>
@@ -101,6 +126,15 @@ const logout = async () => {
                   <v-btn color="blue-lighten-1" @click="toggleDone(todo.id)">{{ todo.done ? 'Undo' :
                     'Done' }}</v-btn>
                   <v-btn color="red" @click="deleteTodo(todo.id)">Delete</v-btn>
+                  <v-spacer></v-spacer>
+                  <div v-if="todo.deadline && !todo.done">
+                    <v-chip color="orange" >
+                      Deadline: {{ todo.deadline?.toDate().toDateString() }}
+                    </v-chip>
+                    <v-chip color="orange" class="ml-1">
+                      Remaining: {{ calculateRemainingDays(todo.deadline) }} days
+                    </v-chip>
+                  </div>
                 </v-card-actions>
               </v-card>
             </v-col>
