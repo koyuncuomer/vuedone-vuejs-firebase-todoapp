@@ -4,6 +4,7 @@ import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, query, order
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '@/firebase';
 import { useRouter } from 'vue-router';
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter();
 
@@ -11,6 +12,8 @@ const todosCollection = collection(db, 'todos');
 
 const todos = ref([]);
 const user = ref();
+const showConfirmDialog = ref(false);
+const todoToDelete = ref(null);
 
 onMounted(() => {
   const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -38,8 +41,11 @@ onMounted(() => {
   return () => unsubscribe();
 });
 
-const deleteTodo = (id) => {
-  deleteDoc(doc(todosCollection, id));
+const deleteTodo = () => {
+  if (todoToDelete.value) {
+    deleteDoc(doc(todosCollection, todoToDelete.value));
+    todoToDelete.value = null;
+  }
 };
 
 const toggleUnarchive = (id) => {
@@ -61,6 +67,10 @@ const goToHome = () => {
   router.push('/todos')
 };
 
+const askDeleteTodo = (id) => {
+  todoToDelete.value = id;
+  showConfirmDialog.value = true;
+};
 </script>
 
 <template>
@@ -82,7 +92,7 @@ const goToHome = () => {
                     {{ todo.content }}
                   </v-card-title>
                   <v-card-actions>
-                    <v-btn color="red" @click="deleteTodo(todo.id)">Delete</v-btn>
+                    <v-btn color="red" @click="askDeleteTodo(todo.id)">Delete</v-btn>
                     <v-btn color="blue-lighten-1" @click="toggleUnarchive(todo.id)">Unarchive</v-btn>
                     <v-spacer></v-spacer>
                     <v-btn :icon="todo.show ? 'mdi-chevron-up' : 'mdi-chevron-down'" @click="todo.show = !todo.show"
@@ -99,6 +109,7 @@ const goToHome = () => {
             </v-col>
           </v-row>
         </v-container>
+        <ConfirmDialog v-model:show="showConfirmDialog" @confirm="deleteTodo" />
       </v-main>
     </v-layout>
   </v-card>

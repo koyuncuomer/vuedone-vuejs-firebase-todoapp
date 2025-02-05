@@ -5,6 +5,7 @@ import { signOut, onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '@/firebase';
 import { useRouter } from 'vue-router';
 import { VDateInput } from 'vuetify/labs/VDateInput'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter();
 
@@ -14,6 +15,8 @@ const newTodoContent = ref('');
 const newTodoDeadline = ref(null);
 const todos = ref([]);
 const user = ref();
+const showConfirmDialog = ref(false);
+const todoToDelete = ref(null);
 
 onMounted(() => {
   const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -56,8 +59,11 @@ const addTodo = () => {
   }
 };
 
-const deleteTodo = (id) => {
-  deleteDoc(doc(todosCollection, id));
+const deleteTodo = () => {
+  if (todoToDelete.value) {
+    deleteDoc(doc(todosCollection, todoToDelete.value));
+    todoToDelete.value = null;
+  }
 };
 
 const toggleDone = (id) => {
@@ -70,7 +76,7 @@ const toggleDone = (id) => {
 
 const toggleArchive = (id) => {
   updateDoc(doc(todosCollection, id), {
-    archive: true 
+    archive: true
   });
 };
 
@@ -101,6 +107,11 @@ const calculateRemainingDays = (deadline) => {
 
   return diffDays
 }
+
+const askDeleteTodo = (id) => {
+  todoToDelete.value = id;
+  showConfirmDialog.value = true;
+};
 
 </script>
 
@@ -142,7 +153,7 @@ const calculateRemainingDays = (deadline) => {
                     {{ todo.content }}
                   </v-card-title>
                   <v-card-actions>
-                    <v-btn color="red" @click="deleteTodo(todo.id)">Delete</v-btn>
+                    <v-btn color="red" @click="askDeleteTodo(todo.id)">Delete</v-btn>
                     <v-btn color="blue-lighten-1" @click="toggleArchive(todo.id)" v-if="todo.done">Archive</v-btn>
                     <v-spacer></v-spacer>
                     <div v-if="todo.deadline && !todo.done">
@@ -168,6 +179,7 @@ const calculateRemainingDays = (deadline) => {
             </v-col>
           </v-row>
         </v-container>
+        <ConfirmDialog v-model:show="showConfirmDialog" @confirm="deleteTodo" />
       </v-main>
     </v-layout>
   </v-card>
