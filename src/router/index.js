@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import RegisterView from "@/views/Register.vue";
 import LoginView from "@/views/Login.vue";
 import TodosView from "@/views/Todos.vue";
+import TodosArchiveView from "@/views/TodosArchive.vue";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/firebase";
 
@@ -56,6 +57,12 @@ const routes = [
         path: "/todos",
         name: "Todos",
         component: TodosView,
+        beforeEnter: requireAuth,
+    },
+    {
+        path: "/archive",
+        name: "Archive",
+        component: TodosArchiveView,
         beforeEnter: requireAuth,
     },
     //{ path: "/", redirect: "/login" },

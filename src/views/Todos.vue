@@ -23,6 +23,7 @@ onMounted(() => {
       const todosQuery = query(
         todosCollection,
         where("userId", "==", firebaseUser.uid),
+        where("archive", "==", false),
         orderBy("date", "desc")
       );
 
@@ -47,6 +48,7 @@ const addTodo = () => {
       deadline: newTodoDeadline.value,
       done: false,
       date: Date.now(),
+      archive: false,
       userId: user.value.uid
     });
     newTodoContent.value = '';
@@ -61,7 +63,14 @@ const deleteTodo = (id) => {
 const toggleDone = (id) => {
   const index = todos.value.findIndex((todo) => todo.id === id);
   updateDoc(doc(todosCollection, id), {
-    done: !todos.value[index].done,
+    //done: !todos.value[index].done,
+    done: todos.value[index].done,
+  });
+};
+
+const toggleArchive = (id) => {
+  updateDoc(doc(todosCollection, id), {
+    archive: true 
   });
 };
 
@@ -72,6 +81,10 @@ const logout = async () => {
   } catch (error) {
     console.error("Çıkış hatası:", error.message);
   }
+};
+
+const goToArchive = () => {
+  router.push('/archive')
 };
 
 const calculateRemainingDays = (deadline) => {
@@ -92,11 +105,12 @@ const calculateRemainingDays = (deadline) => {
 </script>
 
 <template>
-  <v-card class="mx-auto" color="grey-darken-3" max-width="650">
+  <v-card class="mx-auto" color="grey-darken-3" max-width="750">
     <v-layout>
       <v-app-bar color="black">
         <v-app-bar-title>VueDone | {{ user?.displayName }}</v-app-bar-title>
         <v-spacer></v-spacer>
+        <v-btn @click="goToArchive">Archive</v-btn>
         <v-btn @click="logout">Logout</v-btn>
       </v-app-bar>
 
@@ -118,24 +132,38 @@ const calculateRemainingDays = (deadline) => {
 
           <v-row dense>
             <v-col v-for="(todo, index) in todos" :key="index" cols="12">
-              <v-card color="grey-darken-2">
-                <v-card-title :class="{ 'line-through-green': todo.done }">
-                  {{ todo.content }}
-                </v-card-title>
-                <v-card-actions>
-                  <v-btn color="blue-lighten-1" @click="toggleDone(todo.id)">{{ todo.done ? 'Undo' :
-                    'Done' }}</v-btn>
-                  <v-btn color="red" @click="deleteTodo(todo.id)">Delete</v-btn>
-                  <v-spacer></v-spacer>
-                  <div v-if="todo.deadline && !todo.done">
-                    <v-chip color="orange" >
-                      Deadline: {{ todo.deadline?.toDate().toDateString() }}
-                    </v-chip>
-                    <v-chip color="orange" class="ml-1">
-                      Remaining: {{ calculateRemainingDays(todo.deadline) }} days
-                    </v-chip>
-                  </div>
-                </v-card-actions>
+              <v-card color="grey-darken-2" class="d-flex">
+                <div style="width: 5%;" class="d-flex align-center justify-center">
+                  <v-checkbox v-model="todo.done" @change="toggleDone(todo.id)" hide-details
+                    color="green-lighten-3"></v-checkbox>
+                </div>
+                <div style="width: 95%">
+                  <v-card-title :class="{ 'line-through-green': todo.done }">
+                    {{ todo.content }}
+                  </v-card-title>
+                  <v-card-actions>
+                    <v-btn color="red" @click="deleteTodo(todo.id)">Delete</v-btn>
+                    <v-btn color="blue-lighten-1" @click="toggleArchive(todo.id)" v-if="todo.done">Archive</v-btn>
+                    <v-spacer></v-spacer>
+                    <div v-if="todo.deadline && !todo.done">
+                      <v-chip color="orange">
+                        Deadline: {{ todo.deadline?.toDate().toDateString() }}
+                      </v-chip>
+                      <v-chip color="orange" class="ml-1">
+                        Remaining: {{ calculateRemainingDays(todo.deadline) }} days
+                      </v-chip>
+                    </div>
+                    <v-btn :icon="todo.show ? 'mdi-chevron-up' : 'mdi-chevron-down'" @click="todo.show = !todo.show"
+                      v-if="todo.content.length > 50"></v-btn>
+                  </v-card-actions>
+                  <v-expand-transition>
+                    <div v-show="todo.show">
+                      <v-card-text :class="{ 'line-through-green': todo.done }">
+                        {{ todo.content }}
+                      </v-card-text>
+                    </div>
+                  </v-expand-transition>
+                </div>
               </v-card>
             </v-col>
           </v-row>
