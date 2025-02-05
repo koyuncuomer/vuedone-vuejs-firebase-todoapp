@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, query, orderBy, where } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, query, orderBy, where, writeBatch } from "firebase/firestore";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '@/firebase';
 import { useRouter } from 'vue-router';
@@ -16,6 +16,7 @@ const newTodoDeadline = ref(null);
 const todos = ref([]);
 const user = ref();
 const showConfirmDialog = ref(false);
+const confirmDialogMessage = ref('Are you sure you want to delete this todo?');
 const todoToDelete = ref(null);
 
 onMounted(() => {
@@ -80,6 +81,16 @@ const toggleArchive = (id) => {
   });
 };
 
+const archiveAllCompleted = async () => {
+  const completedTodos = todos.value.filter(todo => todo.done);
+  const batch = writeBatch(db);
+  completedTodos.forEach(todo => {
+    const todoRef = doc(todosCollection, todo.id);
+    batch.update(todoRef, { archive: true });
+  });
+  await batch.commit();
+};
+
 const logout = async () => {
   try {
     await signOut(auth);
@@ -91,6 +102,9 @@ const logout = async () => {
 
 const goToArchive = () => {
   router.push('/archive')
+};
+const goToTodos = () => {
+  router.push('/todos')
 };
 
 const calculateRemainingDays = (deadline) => {
@@ -119,10 +133,14 @@ const askDeleteTodo = (id) => {
   <v-card class="mx-auto" color="grey-darken-3" max-width="750">
     <v-layout>
       <v-app-bar color="black">
-        <v-app-bar-title>VueDone | {{ user?.displayName }}</v-app-bar-title>
-        <v-spacer></v-spacer>
-        <v-btn @click="goToArchive">Archive</v-btn>
-        <v-btn @click="logout">Logout</v-btn>
+        <template v-slot:prepend>
+          <v-btn @click="goToTodos">Home</v-btn>
+          <v-btn @click="goToArchive">Archive</v-btn>
+        </template>
+        <v-app-bar-title class="text-center">VueDone Home</v-app-bar-title>
+        <template v-slot:append>
+          <v-btn @click="archiveAllCompleted">Archive All Completed</v-btn>
+        </template>
       </v-app-bar>
 
       <v-main>
@@ -179,8 +197,17 @@ const askDeleteTodo = (id) => {
             </v-col>
           </v-row>
         </v-container>
-        <ConfirmDialog v-model:show="showConfirmDialog" @confirm="deleteTodo" />
+
+        <ConfirmDialog v-model:show="showConfirmDialog" :message="confirmDialogMessage" @confirm="deleteTodo" />
       </v-main>
+
+      <v-footer app class="footer" color="black" height="40">
+        <v-container>
+          <span>&copy; {{ new Date().getFullYear() }} VueDone.</span>
+        </v-container>
+        <v-btn @click="logout" color="black">{{ user?.displayName }} | Logout</v-btn>
+      </v-footer>
+
     </v-layout>
   </v-card>
 </template>

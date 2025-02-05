@@ -2,7 +2,12 @@
 import { ref, defineProps, defineEmits } from 'vue';
 
 const props = defineProps({
-  show: Boolean
+  show: Boolean,
+  message: String,
+  isSingleDelete: {
+    type: Boolean,
+    default: true
+  }
 });
 
 const emit = defineEmits(['update:show', 'confirm']);
@@ -12,7 +17,7 @@ const closeDialog = () => {
 };
 
 const confirmAction = () => {
-  emit('confirm');
+  emit('confirm', props.isSingleDelete);
   closeDialog();
 };
 </script>
@@ -21,7 +26,7 @@ const confirmAction = () => {
   <v-dialog v-model="props.show" max-width="400">
     <v-card class="mx-auto" color="grey-darken-3">
       <v-card-title class="headline">Confirm Delete</v-card-title>
-      <v-card-text>Are you sure you want to delete this todo?</v-card-text>
+      <v-card-text>{{ message }}</v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="grey" @click="closeDialog">Cancel</v-btn>
